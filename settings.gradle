@@ -1,0 +1,3 @@
+rootProject.name='LogUtils'
+include ':app'
+include ':log'
