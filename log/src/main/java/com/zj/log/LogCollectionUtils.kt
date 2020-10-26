@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package com.zj.log
 
 import android.app.Application
@@ -60,8 +62,7 @@ sealed class LogCollectionUtils {
         }
     }
 
-    @Suppress("unused")
-    fun printInFile(where: String, s: String?, append: Boolean) {
+    fun writeToFile(where: String, s: String?, append: Boolean) {
         if (!checkInit()) return
         val type = ErrorType.D
         val txt = getLogText(where, s)
@@ -73,16 +74,20 @@ sealed class LogCollectionUtils {
         }
     }
 
-    fun getLogFile(path: String, name: String): File? {
-        return fileUtils?.getFile(path, name)
+    fun writeToFile(what: String?, append: Boolean = true) {
+        fileUtils?.save(subPath(), fileName(), what ?: "", append)
     }
 
-    fun getCollectionFolder(): File? {
+    fun getLogFile(): File? {
+        return fileUtils?.getFile(subPath(), fileName())
+    }
+
+    fun getCollectionHomeFolder(): File? {
         return fileUtils?.getHomePathFile()
     }
 
-    fun getLogText(logFile: File?): String? {
-        return fileUtils?.getTxt(logFile)
+    fun getLogFileText(): String? {
+        return fileUtils?.getTxt(fileUtils?.getFile(subPath(), fileName()))
     }
 
     private fun getLogText(where: String, s: String?): String {
@@ -91,10 +96,6 @@ sealed class LogCollectionUtils {
 
     private fun onLogCollection(type: ErrorType, log: String?, append: Boolean = true) {
         fileUtils?.save(subPath(), fileName(), " \n type:${type.errorName} : on  ${hmsNio()}:$log ", append)
-    }
-
-    protected fun write(what: String?, append: Boolean = true) {
-        fileUtils?.save(subPath(), fileName(), what ?: "", append)
     }
 
     open fun removeAble(): Boolean {
