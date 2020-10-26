@@ -1,9 +1,11 @@
 package com.zj.log
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import java.io.File
 import java.lang.Exception
+import java.lang.IllegalArgumentException
 import java.lang.NullPointerException
 
 /**
@@ -22,13 +24,15 @@ sealed class LogCollectionUtils {
     private var debugEnable: Boolean = false
     private var collectionAble: () -> Boolean = { false }
 
-    private fun init(appContext: Application?, folderName: String, subPath: () -> String, fileName: () -> String, debugEnable: Boolean, collectionAble: (() -> Boolean)?, maxRetain: Long) {
+    abstract fun checkInit(): Boolean
+
+    private fun init(appContext: Context?, folderName: String, subPath: () -> String, fileName: () -> String, debugEnable: Boolean, collectionAble: (() -> Boolean)?, maxRetain: Long) {
         fileUtils = FileUtils.init(appContext, folderName)
         this.subPath = subPath
         this.fileName = fileName
         this.debugEnable = debugEnable
         this.collectionAble = collectionAble ?: { false }
-        if (removeAble()) removeOldFiles(maxRetain)
+        if (removeAble() && maxRetain > 0) removeOldFiles(maxRetain)
     }
 
     private var fileUtils: FileUtils? = null
@@ -36,18 +40,21 @@ sealed class LogCollectionUtils {
     private fun getTag(what: String?) = String.format(TAG, what)
 
     fun d(where: String, s: String?) {
+        if (!checkInit()) return
         if (debugEnable) {
             Log.d(getTag(ErrorType.D.errorName), getLogText(where, s))
         }
     }
 
     fun w(where: String, s: String?) {
+        if (!checkInit()) return
         if (debugEnable) {
             Log.w(getTag(ErrorType.W.errorName), getLogText(where, s))
         }
     }
 
     fun e(where: String, s: String?) {
+        if (!checkInit()) return
         if (debugEnable) {
             Log.e(getTag(ErrorType.E.errorName), getLogText(where, s))
         }
@@ -55,6 +62,7 @@ sealed class LogCollectionUtils {
 
     @Suppress("unused")
     fun printInFile(where: String, s: String?, append: Boolean) {
+        if (!checkInit()) return
         val type = ErrorType.D
         val txt = getLogText(where, s)
         if (debugEnable) {
@@ -115,11 +123,35 @@ sealed class LogCollectionUtils {
     }
 
     abstract class Config : LogCollectionUtils() {
-        private var collectionAble: (() -> Boolean)? = null
-        private var maxRetain: Long = 0
-        private var debugEnable: Boolean = false
         abstract val subPath: () -> String
         abstract val fileName: () -> String
+        private var isInit = false
+        private var initializing = false
+
+        final override fun checkInit(): Boolean {
+            return isInit
+        }
+
+        private fun selfInit(appContext: Context?, debugEnable: Boolean, collectionAble: () -> Boolean, logsMaxRetain: Long) {
+            if (isInit) return
+            if (initializing) return
+            initializing = true
+            initConfig(appContext, ".panel", debugEnable, collectionAble, logsMaxRetain)
+        }
+
+        /**
+         * must call init() before use
+         * */
+        fun init(appContext: Context?, folderName: String, debugEnable: Boolean, collectionAble: () -> Boolean, logsMaxRetain: Long) {
+            synchronized(this) {
+                isInit = false
+                initializing = true
+                logUtils.selfInit(appContext, debugEnable, collectionAble, logsMaxRetain)
+                initConfig(appContext, folderName, debugEnable, collectionAble, logsMaxRetain)
+            }
+        }
+
+        private fun getOverridePath(s: String) = overriddenFolderName(s)
 
         open fun overriddenFolderName(folderName: String): String {
             return folderName
@@ -127,22 +159,15 @@ sealed class LogCollectionUtils {
 
         open fun prepare() {}
 
-        /**
-         * must call init() before use
-         * */
-        fun init(appContext: Application?, folderName: String, debugEnable: Boolean, collectionAble: () -> Boolean, logsMaxRetain: Long) {
+        private fun initConfig(appContext: Context?, folderName: String, debugEnable: Boolean, collectionAble: () -> Boolean, logsMaxRetain: Long) {
+            if ((appContext as? Application) == null) throw  IllegalArgumentException("please use an application context to init the log utils")
             if (collectionAble.invoke() && folderName.isEmpty()) {
                 throw NullPointerException("must set a log path with open the log collectors!")
             }
-            this.collectionAble = collectionAble
-            this.maxRetain = logsMaxRetain
-            this.debugEnable = debugEnable
-            initConfig(appContext, overriddenFolderName(folderName))
-        }
-
-        private fun initConfig(appContext: Application?, folderName: String) {
-            super.init(appContext, folderName, subPath, fileName, debugEnable, collectionAble, maxRetain)
+            super.init(appContext, folderName, subPath, fileName, debugEnable, collectionAble, logsMaxRetain)
             prepare()
+            isInit = true
+            initializing = false
         }
     }
 }

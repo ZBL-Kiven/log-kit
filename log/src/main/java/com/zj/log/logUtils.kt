@@ -9,12 +9,7 @@ package com.zj.log
  *
  * collectionAble = auto
  * */
-internal val logUtils = object : LogCollectionUtils.Config() {
-
-    override fun overriddenFolderName(folderName: String): String {
-        return "$folderName/_log_panel"
-    }
-
+internal var logUtils = object : LogCollectionUtils.Config() {
     override val subPath: () -> String
         get() = { ymd() }
     override val fileName: () -> String

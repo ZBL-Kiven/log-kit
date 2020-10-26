@@ -1,6 +1,6 @@
 package com.zj.log
 
-import android.app.Application
+import android.content.Context
 import java.io.*
 import java.lang.IllegalArgumentException
 import java.util.zip.ZipEntry
@@ -11,7 +11,7 @@ import kotlin.text.StringBuilder
  * Created by ZJJ
  */
 @Suppress("unused")
-class FileUtils private constructor(private val homePath: String) {
+internal class FileUtils private constructor(private val homePath: String) {
 
     fun getHomePathFile(): File? {
         var homeFile: File? = null
@@ -153,7 +153,7 @@ class FileUtils private constructor(private val homePath: String) {
 
         private var DISK: String = ""
 
-        fun init(appContext: Application?, diskPathName: String): FileUtils {
+        fun init(appContext: Context?, diskPathName: String): FileUtils {
             DISK = appContext?.externalCacheDir?.absolutePath + File.separator
             return FileUtils(DISK + diskPathName)
         }
